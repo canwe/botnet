@@ -1,0 +1,3 @@
+#!/bin/sh
+
+erl -name botnet_ctl@`hostname -s` -pa ebin -boot release/botnet-1.0
