@@ -5,8 +5,7 @@
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, 
 	     handle_info/2, terminate/2, code_change/3]).
 
--export([add_host/1]).
--export([lock_node/0, unlock_node/1]).
+-export([add_host/2, lock_node/0, unlock_node/1]).
 
 -record(state, {available_nodes=queue:new()}).
 
@@ -14,12 +13,11 @@
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-add_host(Local) when Local == <<"127.0.0.1">>; Local == <<"localhost">> ->
+add_host(_Host, Ip) when Ip == <<"127.0.0.1">>; Ip == <<"localhost">> ->
     gen_server:call(?MODULE, {add_node, node()});
 
-add_host(Ip) when is_binary(Ip) ->
+add_host(Host, Ip) when is_list(Host), is_binary(Ip) ->
     {ok, Addr} = inet:getaddr(binary_to_list(Ip), inet),
-    Host = "asdf",
     inet_db:add_host(Addr, [Host]),
     case slave:start_link(Host) of
         {ok, Node} -> gen_server:call(?MODULE, {add_node, Node});
