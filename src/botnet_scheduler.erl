@@ -10,7 +10,8 @@ run({M,F,A}, {X, times_each, hour}) when is_integer(X) ->
 run({M,F,A}, {X, times_each, day}) when is_integer(X) ->
     run({M,F,A}, (1000 div X) * 60 * 60 * 24);
 run({M,F,A}, MillisecondFreq) when is_integer(MillisecondFreq) ->
-    spawn_link(?MODULE, loop, [{M,F,A}, MillisecondFreq]).
+    Pid = spawn_link(?MODULE, loop, [{M,F,A}, MillisecondFreq]),
+    fun() -> Pid ! {stop, self()} end.
 
 loop({M,F,A}, MillisecondFreq) ->
     Before = now(),

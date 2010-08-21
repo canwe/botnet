@@ -5,24 +5,27 @@
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, 
 	     handle_info/2, terminate/2, code_change/3]).
 
--export([add_host/1, lock_node/0, unlock_node/1]).
+-export([add_node/1, all_nodes/0, lock_node/0, unlock_node/1]).
 
--record(state, {available_nodes=queue:new()}).
+-record(state, {available_nodes=queue:new(), all_nodes=[]}).
 
 %% API functions
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-add_host(Ip) when Ip == <<"127.0.0.1">>; Ip == <<"localhost">> ->
-    gen_server:call(?MODULE, {add_node, node()});
-
-add_host(Ip) when is_list(Ip) ->
+add_node(Ip) when is_list(Ip) ->
     Args = "-setcookie " ++ atom_to_list(erlang:get_cookie()),
-    NodeName = "foobar",
+    NodeName = node_name(),
     case slave:start_link(Ip, NodeName, Args) of
-        {ok, Node} -> gen_server:call(?MODULE, {add_node, Node});
-        {error, Reason} -> {error, Reason}
+        {ok, Node} ->
+            io:format("added node ~p~n", [Node]),
+            gen_server:call(?MODULE, {add_node, Node});
+        {error, Reason} ->
+            {error, Reason}
     end.
+
+all_nodes() ->
+    gen_server:call(?MODULE, all_nodes).
 
 lock_node() ->
     gen_server:call(?MODULE, lock_node).
@@ -55,13 +58,17 @@ init([]) ->
 %% Description: Handling call messages
 %% @hidden
 %%--------------------------------------------------------------------
-handle_call({add_node, Node}, _From, #state{available_nodes=Available}=State) ->
+handle_call({add_node, Node}, _From, #state{available_nodes=Available, all_nodes=AllNodes}=State) ->
     Available1 = queue:in(Node, Available),
-    {reply, ok, State#state{available_nodes=Available1}};
+    {reply, ok, State#state{available_nodes=Available1, all_nodes=[Node|AllNodes]}};
 
-handle_call({remove_node, Node}, _From, #state{available_nodes=Available}=State) ->
+handle_call({remove_node, Node}, _From, #state{available_nodes=Available, all_nodes=AllNodes}=State) ->
     Available1 = queue:filter(fun(Item) -> Node =/= Item end, Available),
-    {reply, ok, State#state{available_nodes=Available1}};
+    AllNodes1 = lists:delete(Node, AllNodes),
+    {reply, ok, State#state{available_nodes=Available1, all_nodes=AllNodes1}};
+
+handle_call(all_nodes, _From, #state{all_nodes=Nodes}=State) ->
+    {reply, Nodes, State};
 
 handle_call(lock_node, _From, #state{available_nodes=Available}=State) ->
     case queue:out(Available) of
@@ -120,3 +127,11 @@ code_change(_OldVsn, State, _Extra) ->
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
+node_name() ->
+    F = fun(H) -> 
+        case H < 10 of
+            true -> $0 + H;
+            false -> $a + H-10
+        end
+    end,
+    lists:flatten([[F(H div 16), F(H rem 16)] || H <- binary_to_list(crypto:rand_bytes(16))]).
