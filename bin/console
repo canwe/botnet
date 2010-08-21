@@ -1,3 +1,4 @@
 #!/bin/sh
 
-erl -name botnet_ctl@`hostname -s` -pa ebin -boot release/botnet-1.0
+PATH=$PATH:$PWD/bin
+erl -pa ebin -name botnet_ctl@`hostname -s` -rsh botnet_ssh -boot release/botnet-1.0
